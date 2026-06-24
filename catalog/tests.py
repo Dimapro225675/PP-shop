@@ -134,6 +134,9 @@ class ProductCatalogTests(TestCase):
     def test_unknown_product_code_shows_empty_search(self):
         response = self.client.get(reverse('catalog:product_list'), {'q': 'VD-999999'})
         self.assertEqual(response.context['page_obj'].paginator.count, 0)
+        self.assertContains(response, 'Товар не найден')
+        self.assertNotContains(response, 'Фильтры')
+        self.assertNotContains(response, 'Сортировка')
 
 
 class InformationPageTests(TestCase):

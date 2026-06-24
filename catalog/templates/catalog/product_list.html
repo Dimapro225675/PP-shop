@@ -4,6 +4,11 @@
 {% block title %}{% if search_query %}Поиск товаров{% elif product_type_label %}{{ product_type_label }}{% else %}Каталог{% endif %} | Vodopad{% endblock %}
 
 {% block content %}
+{% if search_query and not page_obj %}
+<main class="search-empty-page">
+    <h1>Товар не найден</h1>
+</main>
+{% else %}
 <main>
     {% if messages %}
         <div class="page-shell messages page-messages">
@@ -148,4 +153,5 @@
         </div>
     {% endif %}
 </main>
+{% endif %}
 {% endblock %}

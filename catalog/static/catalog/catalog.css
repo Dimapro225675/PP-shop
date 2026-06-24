@@ -2284,6 +2284,20 @@ select {
     color: #777b83;
 }
 
+.search-empty-page {
+    display: grid;
+    min-height: 52vh;
+    place-items: center;
+    padding: 48px 20px;
+    text-align: center;
+}
+
+.search-empty-page h1 {
+    margin: 0;
+    color: #292d42;
+    font-size: 32px;
+}
+
 .about-section {
     width: min(1080px, calc(100% - 40px));
     margin: 0 auto 38px;
