@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ product.name }} | Vodopad{% endblock %}
+
+{% block content %}
+<main class="product-detail page-shell">
+    {% if messages %}
+        <div class="messages page-messages">
+            {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    <nav class="product-detail__breadcrumbs" aria-label="Навигация">
+        <a href="{% url 'catalog:product_list' %}">Каталог</a>
+        <span>/</span>
+        <a href="{% url 'catalog:product_type' product.category %}">{{ product.get_category_display }}</a>
+        <span>/</span>
+        <span>{{ product.name }}</span>
+    </nav>
+
+    <div class="product-detail__layout">
+        <section class="product-detail__gallery" aria-label="Изображение товара">
+            <span class="product-detail__badge">В наличии</span>
+            {% if product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+            {% else %}
+                <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ product.name }}">
+            {% endif %}
+        </section>
+
+        <section class="product-detail__information">
+            <h1>{{ product.name }}</h1>
+            <p class="product-detail__original"><span aria-hidden="true">✓</span> Проверенный товар</p>
+
+            <div class="product-detail__section-heading">
+                <h2>О товаре</h2>
+                <form class="favorite-toggle favorite-toggle--detail" method="post" action="{% url 'users:toggle_favorite' product.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button
+                        type="submit"
+                        class="favorite-toggle__button{% if is_favorite %} favorite-toggle__button--active{% endif %}"
+                        title="{% if is_favorite %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                        aria-label="{% if is_favorite %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                        aria-pressed="{% if is_favorite %}true{% else %}false{% endif %}"
+                    >{% if is_favorite %}♥{% else %}♡{% endif %}</button>
+                </form>
+            </div>
+
+            <dl class="product-specs">
+                <div><dt>Код товара</dt><dd>{{ product.code }}</dd></div>
+                <div><dt>Категория</dt><dd>{{ product.get_category_display }}</dd></div>
+                <div><dt>Производитель</dt><dd>{{ product.manufacturer }}</dd></div>
+                <div><dt>Цвет</dt><dd>{{ product.color }}</dd></div>
+                <div><dt>Материал</dt><dd>{{ product.material }}</dd></div>
+                <div><dt>Форма</dt><dd>{{ product.shape }}</dd></div>
+                <div><dt>Монтаж</dt><dd>{{ product.get_installation_type_display }}</dd></div>
+                {% if product.size_label %}<div><dt>Размер</dt><dd>{{ product.size_label }}</dd></div>{% endif %}
+            </dl>
+
+            {% if product.description %}
+                <div class="product-detail__description">
+                    <h2>Описание</h2>
+                    <p>{{ product.description }}</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <aside class="product-detail__purchase">
+            <section class="purchase-panel">
+                <strong class="purchase-panel__price">{{ product.price|floatformat:0 }} ₽</strong>
+                <form method="post" action="{% url 'cart:add' product.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="quantity" value="1">
+                    <button class="button purchase-panel__button" type="submit">Добавить в корзину</button>
+                </form>
+                <p class="purchase-panel__stock">В наличии</p>
+            </section>
+
+            <section class="delivery-panel">
+                <h2>Доставка и возврат</h2>
+                <p><span>Самовывоз:</span> завтра, бесплатно</p>
+                <p><span>Доставка курьером:</span> от 1 дня</p>
+                <p class="delivery-panel__return">Можно вернуть в течение 7 дней</p>
+            </section>
+        </aside>
+    </div>
+</main>
+{% endblock %}

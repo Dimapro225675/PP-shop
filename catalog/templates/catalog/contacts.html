@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Контакты | Vodopad{% endblock %}
+
+{% block content %}
+<main class="info-page contacts-page">
+    <header class="contacts-page__header">
+        <h1>Контакты</h1>
+        <p>Свяжитесь с нами удобным способом — специалисты помогут с выбором товара, заказом и доставкой.</p>
+    </header>
+
+    <section class="contact-grid" aria-label="Контактная информация">
+        <article>
+            <h2>Консультации менеджера</h2>
+            <p>Будние дни с 9:00 до 21:00 (МСК)<br>Выходные дни с 9:00 до 18:00</p>
+            <a href="tel:+79550306398">8 (955) 030-63-98</a>
+            <a class="footer-site" href="{% url 'home' %}">vodopad.ru</a>
+        </article>
+        <article>
+            <h2>Адрес</h2>
+            <p>Краснодарский край, г. Белореченск<br>Улица Ленина, 55</p>
+            <p>Будние дни с 9:00 до 21:00<br>Выходные дни с 9:00 до 18:00</p>
+            <a href="tel:+79550306398">8 (955) 030-63-98</a>
+        </article>
+    </section>
+</main>
+{% endblock %}

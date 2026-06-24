@@ -1,0 +1,15 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{% endblock %} | Vodopad</title>
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}?v=layout-20260622-2">
+</head>
+<body class="auth-modal-body">
+    <main class="auth-page">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

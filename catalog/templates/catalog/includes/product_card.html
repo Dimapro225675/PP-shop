@@ -1,0 +1,38 @@
+{% load static %}
+<article
+    class="product-card product-card--shop"
+    data-product-url="{% url 'catalog:product_detail' product.pk %}"
+    tabindex="0"
+    role="link"
+    aria-label="Открыть товар {{ product.name }}"
+>
+    <div class="product-card__media">
+        {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
+        {% else %}
+            <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ product.name }}" loading="lazy">
+        {% endif %}
+        <form class="favorite-toggle" method="post" action="{% url 'users:toggle_favorite' product.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button
+                type="submit"
+                class="favorite-toggle__button{% if product.pk in favorite_product_ids %} favorite-toggle__button--active{% endif %}"
+                title="{% if product.pk in favorite_product_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                aria-label="{% if product.pk in favorite_product_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                aria-pressed="{% if product.pk in favorite_product_ids %}true{% else %}false{% endif %}"
+            >{% if product.pk in favorite_product_ids %}♥{% else %}♡{% endif %}</button>
+        </form>
+    </div>
+    <div class="product-card__body">
+        <h2><a href="{% url 'catalog:product_detail' product.pk %}">{{ product.name }}</a></h2>
+        <div class="product-card__footer">
+            <strong>{{ product.price|floatformat:0 }} ₽</strong>
+        </div>
+        <form class="product-card__action" method="post" action="{% url 'cart:add' product.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="quantity" value="1">
+            <button class="button button--buy" type="submit">Оформить</button>
+        </form>
+    </div>
+</article>

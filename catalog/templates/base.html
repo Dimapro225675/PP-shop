@@ -1,0 +1,68 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Vodopad{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'catalog/catalog.css' %}?v=info-pages-20260625-1">
+    <script src="{% static 'catalog/favorites.js' %}?v=recommendations-20260623-1" defer></script>
+</head>
+<body class="{% block body_class %}site-body{% endblock %}">
+    <header class="home-header">
+        <a class="home-logo" href="{% url 'home' %}">Vodopad</a>
+        <a class="home-catalog-button" href="{% url 'catalog:product_list' %}" aria-label="Каталог">
+            <span class="catalog-icon" aria-hidden="true"></span>
+            <span>Каталог</span>
+        </a>
+        <form class="home-search" action="{% url 'catalog:product_list' %}" method="get">
+            <label class="visually-hidden" for="site-search-input">Поиск товара</label>
+            <input id="site-search-input" type="search" name="q" value="{{ search_query|default:'' }}" placeholder="Поиск товара">
+            <button type="submit" aria-label="Найти">
+                <span aria-hidden="true"></span>
+            </button>
+        </form>
+        <nav class="home-actions home-actions--compact" aria-label="Навигация пользователя">
+            {% if user.is_authenticated %}
+                <a href="{% url 'users:profile' %}"><span class="action-icon action-icon--cabinet"></span><small>Кабинет</small></a>
+            {% else %}
+                <a href="{% url 'users:login' %}"><span class="action-icon action-icon--user"></span><small>Вход</small></a>
+                <a href="{% url 'users:profile' %}"><span class="action-icon action-icon--cabinet"></span><small>Кабинет</small></a>
+            {% endif %}
+            <a href="{% url 'cart:detail' %}"><span class="action-icon action-icon--cart"></span><small>Корзина</small></a>
+        </nav>
+    </header>
+
+    <div class="site-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="home-footer">
+        <div class="footer-column">
+            <h2>Покупателю</h2>
+            <a href="{% url 'catalog:product_list' %}">Каталог</a>
+            <a href="{% url 'users:profile' %}">Личный кабинет</a>
+            <a href="{% url 'cart:detail' %}">Корзина</a>
+            {% if user.is_authenticated %}
+                <form class="footer-logout" method="post" action="{% url 'users:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit">Выйти</button>
+                </form>
+            {% else %}
+                <a href="{% url 'users:login' %}">Вход</a>
+            {% endif %}
+        </div>
+        <div class="footer-column">
+            <h2>Компания</h2>
+            <a href="{% url 'catalog:about' %}">О нас</a>
+            <a href="{% url 'catalog:contacts' %}">Контакты</a>
+        </div>
+        <div class="footer-contacts">
+            <a class="footer-phone" href="tel:+79550306398">8 (955) 030-63-98</a>
+            <span>Мы работаем с 9:00 до 21:00</span>
+            <a class="footer-site" href="{% url 'home' %}">vodopad.ru</a>
+        </div>
+    </footer>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

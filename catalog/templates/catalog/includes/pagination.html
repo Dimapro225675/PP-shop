@@ -1,0 +1,11 @@
+{% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination" aria-label="Страницы каталога">
+        {% if page_obj.has_previous %}
+            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Предыдущая страница">←</a>
+        {% endif %}
+        <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?{% if query_string %}{{ query_string }}&amp;{% endif %}page={{ page_obj.next_page_number }}" aria-label="Следующая страница">→</a>
+        {% endif %}
+    </nav>
+{% endif %}

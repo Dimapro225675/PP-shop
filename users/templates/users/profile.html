@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Личный кабинет | Vodopad{% endblock %}
+
+{% block content %}
+<div class="account-page">
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="account-section account-summary">
+        <div class="account-section__heading">
+            <h1>Личный кабинет</h1>
+            {% if user.is_staff %}<a class="button button--secondary" href="{% url 'admin:index' %}">Админ-панель</a>{% endif %}
+        </div>
+        <dl class="profile-data profile-data--columns">
+            <div><dt>Логин:</dt><dd>{{ user.username }}</dd></div>
+            <div><dt>Email:</dt><dd>{{ user.email|default:'—' }}</dd></div>
+            {% if user_profile %}
+                <div><dt>ФИО:</dt><dd>{{ user_profile.full_name }}</dd></div>
+                <div><dt>Телефон:</dt><dd>{{ user_profile.phone }}</dd></div>
+            {% endif %}
+        </dl>
+        <form class="account-logout" method="post" action="{% url 'users:logout' %}">
+            {% csrf_token %}
+            <button class="button button--secondary" type="submit">Выйти</button>
+        </form>
+    </section>
+
+    <section class="account-section">
+        <div class="account-section__heading">
+            <h2>Активные заказы</h2>
+            <span>{{ active_orders|length }}</span>
+        </div>
+        {% if active_orders %}
+            <div class="order-list">
+                {% for order in active_orders %}
+                    {% include 'users/includes/order_card.html' with order=order history=False %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="account-empty">Активных заказов нет</p>
+        {% endif %}
+    </section>
+
+    <section id="favorites" class="account-section">
+        <div class="account-section__heading">
+            <h2>Избранное</h2>
+            <span>{{ favorites|length }}</span>
+        </div>
+        {% if favorites %}
+            <div class="favorite-grid">
+                {% for favorite in favorites %}
+                    <article
+                        class="favorite-card"
+                        data-product-url="{% url 'catalog:product_detail' favorite.product.pk %}"
+                        tabindex="0"
+                        role="link"
+                        aria-label="Открыть товар {{ favorite.product.name }}"
+                    >
+                        <div class="favorite-card__media">
+                            <a href="{% url 'catalog:product_detail' favorite.product.pk %}">
+                                {% if favorite.product.image %}
+                                    <img src="{{ favorite.product.image.url }}" alt="{{ favorite.product.name }}" loading="lazy">
+                                {% else %}
+                                    <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ favorite.product.name }}" loading="lazy">
+                                {% endif %}
+                            </a>
+                            <form method="post" action="{% url 'users:toggle_favorite' favorite.product.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{% url 'users:profile' %}">
+                                <button type="submit" title="Удалить из избранного" aria-label="Удалить из избранного">♥</button>
+                            </form>
+                        </div>
+                        <div class="favorite-card__body">
+                            <small>{{ favorite.product.manufacturer }}</small>
+                            <h3><a href="{% url 'catalog:product_detail' favorite.product.pk %}">{{ favorite.product.name }}</a></h3>
+                            <strong>{{ favorite.product.price|floatformat:2 }} ₽</strong>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="account-empty">В избранном пока нет товаров</p>
+        {% endif %}
+    </section>
+
+    <section class="account-section">
+        <div class="account-section__heading">
+            <h2>История заказов</h2>
+            <div class="history-heading-actions">
+                <span>{{ order_history|length }}</span>
+                {% if order_history %}
+                    <form method="post" action="{% url 'users:clear_order_history' %}">
+                        {% csrf_token %}
+                        <button class="remove-button" type="submit">Очистить всё</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        {% if order_history %}
+            <div class="order-list">
+                {% for order in order_history %}
+                    {% include 'users/includes/order_card.html' with order=order history=True %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="account-empty">История заказов пуста</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

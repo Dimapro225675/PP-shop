@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if search_query %}Поиск товаров{% elif product_type_label %}{{ product_type_label }}{% else %}Каталог{% endif %} | Vodopad{% endblock %}
+
+{% block content %}
+<main>
+    {% if messages %}
+        <div class="page-shell messages page-messages">
+            {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% if catalog_overview or type_catalog %}
+        <section class="catalog-overview page-shell">
+            <a class="catalog-crumb" href="{% url 'catalog:product_list' %}">Каталог</a>
+            <h1>{% if product_type_label %}{{ product_type_label }}{% else %}Сантехника{% endif %}</h1>
+            <div class="catalog-overview__layout">
+                <aside class="catalog-sidebar" aria-label="Категории">
+                    <div class="catalog-sidebar__heading">
+                        <span>Категории</span>
+                        <span aria-hidden="true">⌃</span>
+                    </div>
+                    <nav class="catalog-sidebar__nav">
+                        <a class="{% if catalog_overview %}catalog-sidebar__active{% endif %}" href="{% url 'catalog:product_list' %}">Сантехника</a>
+                        {% for item in type_navigation %}
+                            <a class="{% if product_type == item.value %}catalog-sidebar__active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+                        {% endfor %}
+                    </nav>
+                </aside>
+
+                {% if catalog_overview %}
+                    <section class="catalog-category-grid" aria-label="Виды сантехники">
+                        {% for item in type_navigation %}
+                            <a class="catalog-category-card" href="{{ item.url }}">
+                                <span class="catalog-category-card__visual catalog-category-card__visual--{{ item.value }}"></span>
+                                <span>{{ item.label }}</span>
+                            </a>
+                        {% endfor %}
+                    </section>
+                {% else %}
+                    <section class="catalog-type-content" aria-label="Товары">
+                        <div class="catalog-type-toolbar">
+                            <span>Найдено: {{ page_obj.paginator.count }}</span>
+                            <form class="sort-form" method="get">
+                                {% for key, values in selected_filters.items %}
+                                    {% for value in values %}
+                                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                    {% endfor %}
+                                {% endfor %}
+                                <label for="sort">Сортировка</label>
+                                <select id="sort" name="sort" onchange="this.form.submit()">
+                                    {% for value, label in sort_options %}
+                                        <option value="{{ value }}"{% if sort == value %} selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </div>
+                        {% if page_obj %}
+                            <div class="product-grid product-grid--type">
+                                {% for product in page_obj %}
+                                    {% include 'catalog/includes/product_card.html' with product=product %}
+                                {% endfor %}
+                            </div>
+                            {% include 'catalog/includes/pagination.html' %}
+                        {% else %}
+                            <div class="catalog-type-empty">
+                                <h2>Товары не найдены</h2>
+                                <p>В этом разделе пока нет товаров.</p>
+                            </div>
+                        {% endif %}
+                    </section>
+                {% endif %}
+            </div>
+        </section>
+    {% else %}
+        <section class="catalog-heading">
+            <div class="page-shell">
+                <p class="eyebrow">Сантехника</p>
+                <div class="heading-row">
+                    <div>
+                        <h1>Поиск товаров</h1>
+                        <p class="result-count">Запрос: “{{ search_query }}”. Найдено: {{ page_obj.paginator.count }}</p>
+                    </div>
+                    <form class="sort-form" method="get">
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        {% for key, values in selected_filters.items %}
+                            {% for value in values %}
+                                <input type="hidden" name="{{ key }}" value="{{ value }}">
+                            {% endfor %}
+                        {% endfor %}
+                        <label for="search-sort">Сортировка</label>
+                        <select id="search-sort" name="sort" onchange="this.form.submit()">
+                            {% for value, label in sort_options %}
+                                <option value="{{ value }}"{% if sort == value %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <div class="page-shell catalog-layout">
+            <aside class="filter-column">
+                <details class="filter-details" open>
+                    <summary>
+                        <span>Фильтры</span>
+                        {% if active_filter_count %}<span class="filter-count">{{ active_filter_count }}</span>{% endif %}
+                    </summary>
+                    <form class="filter-form" method="get">
+                        <input type="hidden" name="q" value="{{ search_query }}">
+                        <input type="hidden" name="sort" value="{{ sort }}">
+                        {% include 'catalog/includes/filter_group.html' with title='Производитель' name='manufacturer' options=facets.manufacturer selected=selected_filters.manufacturer %}
+                        {% if facets.size %}{% include 'catalog/includes/size_filter.html' with options=facets.size selected=selected_filters.size %}{% endif %}
+                        {% include 'catalog/includes/filter_group.html' with title='Цвет' name='color' options=facets.color selected=selected_filters.color %}
+                        {% include 'catalog/includes/filter_group.html' with title='Материал' name='material' options=facets.material selected=selected_filters.material %}
+                        {% include 'catalog/includes/filter_group.html' with title='Форма' name='shape' options=facets.shape selected=selected_filters.shape %}
+                        {% include 'catalog/includes/choice_filter_group.html' with title='Монтаж' name='installation_type' options=facets.installation_type selected=selected_filters.installation_type %}
+                        <div class="filter-actions">
+                            <button class="button button--primary" type="submit">Применить</button>
+                            {% if active_filter_count %}
+                                <a class="button button--secondary" href="{% url 'catalog:product_list' %}?q={{ search_query|urlencode }}">Сбросить</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </details>
+            </aside>
+
+            <section class="product-area" aria-label="Товары">
+                {% if page_obj %}
+                    <div class="product-grid product-grid--search">
+                        {% for product in page_obj %}
+                            {% include 'catalog/includes/product_card.html' with product=product %}
+                        {% endfor %}
+                    </div>
+                    {% include 'catalog/includes/pagination.html' %}
+                {% else %}
+                    <div class="empty-state">
+                        <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="Сантехника">
+                        <div>
+                            <h2>Товары не найдены</h2>
+                            <p>По запросу “{{ search_query }}” ничего не найдено.</p>
+                            <a class="button button--primary" href="{% url 'catalog:product_list' %}">Весь каталог</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}

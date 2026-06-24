@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pp-shop"
+version = "0.1.0"
+description = ""
+authors = ["Dimapro225675 <you@example.comhttps://github.com/Dimapro225675/main.git>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.14"
+django = "^6.0.6"
+psycopg = {extras = ["binary"], version = "^3.3.4"}
+pillow = "^12.2.0"
+yookassa = "^3.10.1"
+python-dotenv = "^1.2.2"
+faker = "^40.23.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

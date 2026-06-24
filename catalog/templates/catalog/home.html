@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}Vodopad | Интернет-магазин сантехники{% endblock %}
+{% block body_class %}home-body{% endblock %}
+
+{% block content %}
+<main class="home-main">
+    <section class="promo-grid" aria-label="Популярные разделы">
+        <a class="promo-card promo-card--large" href="{% url 'catalog:product_type' 'bathtub' %}">
+            <span class="promo-label promo-label--light"><strong>Ванны</strong></span>
+        </a>
+        <a class="promo-card promo-card--bottom" href="{% url 'catalog:product_type' 'sink' %}">
+            <span class="promo-label promo-label--filled"><strong>Раковины</strong></span>
+        </a>
+        <a class="promo-card" href="{% url 'catalog:product_type' 'shower' %}">
+            <span class="promo-label promo-label--teal"><strong>Душевые</strong></span>
+        </a>
+        <a class="promo-card promo-card--bottom" href="{% url 'catalog:product_type' 'pipe' %}">
+            <span class="promo-label promo-label--filled"><strong>Трубопроводные системы</strong></span>
+        </a>
+    </section>
+
+    <section class="home-section category-section">
+        <div class="section-heading">
+            <h1>Сантехника</h1>
+            <a href="{% url 'catalog:product_list' %}">Все категории</a>
+        </div>
+        <div class="category-strip">
+            <a class="category-item" href="{% url 'catalog:product_type' 'bathtub' %}"><span class="category-thumb category-thumb--bathtub"></span><small>Ванны</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'sink' %}"><span class="category-thumb category-thumb--sinks"></span><small>Раковины</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'faucet' %}"><span class="category-thumb category-thumb--faucet"></span><small>Краны</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'shower' %}"><span class="category-thumb category-thumb--showers"></span><small>Душевые</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'toilet' %}"><span class="category-thumb category-thumb--toilet"></span><small>Унитазы</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'pipe' %}"><span class="category-thumb category-thumb--pipe"></span><small>Трубы</small></a>
+            <a class="category-item" href="{% url 'catalog:product_type' 'other' %}"><span class="category-thumb category-thumb--other"></span><small>Другое</small></a>
+        </div>
+    </section>
+
+    <section class="deals-section" aria-labelledby="recommendations-title">
+        <h2 id="recommendations-title">Рекомендуется</h2>
+        {% if recommended_products %}
+            <div class="deal-grid">
+                {% for product in recommended_products %}
+                    <article class="deal-card" data-product-url="{% url 'catalog:product_detail' product.pk %}" tabindex="0" role="link" aria-label="Открыть товар {{ product.name }}">
+                        <div class="deal-media">
+                            {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">{% endif %}
+                            <form class="favorite-toggle" method="post" action="{% url 'users:toggle_favorite' product.pk %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <button
+                                    type="submit"
+                                    class="favorite-toggle__button{% if product.pk in favorite_product_ids %} favorite-toggle__button--active{% endif %}"
+                                    title="{% if product.pk in favorite_product_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                                    aria-label="{% if product.pk in favorite_product_ids %}Удалить из избранного{% else %}Добавить в избранное{% endif %}"
+                                    aria-pressed="{% if product.pk in favorite_product_ids %}true{% else %}false{% endif %}"
+                                >{% if product.pk in favorite_product_ids %}♥{% else %}♡{% endif %}</button>
+                            </form>
+                        </div>
+                        <p class="deal-code">Код: {{ product.code }}</p>
+                        <p class="deal-price">{{ product.price|floatformat:0 }} ₽</p>
+                        <h3><a href="{% url 'catalog:product_detail' product.pk %}">{{ product.name }}</a></h3>
+                        <a class="deal-button" href="{% url 'catalog:product_detail' product.pk %}">Посмотреть</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="recommendations-empty">
+                <h3>Рекомендации скоро появятся</h3>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="about-section">
+        <h2>Vodopad.ru — интернет-магазин сантехники</h2>
+        <p>Мы предлагаем сантехнику и оборудование для ванной комнаты. В каталоге можно подобрать всё необходимое для обустройства ванной комнаты и другую сантехнику.</p>
+        <div class="benefit-grid">
+            <article><h3>Профессиональные консультации</h3><p>Наши специалисты помогут подобрать сантехнику и мебель для ванной комнаты.</p></article>
+            <article><h3>Официальный дистрибьютор</h3><p>Товары мировых брендов с официальной гарантией.</p></article>
+            <article><h3>Собственная служба доставки</h3><p>Оперативная доставка по всей России.</p></article>
+            <article><h3>Выгодные цены</h3><p>Подбор сантехники под разные задачи и бюджет.</p></article>
+        </div>
+    </section>
+</main>
+{% endblock %}

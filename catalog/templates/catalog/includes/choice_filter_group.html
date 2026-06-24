@@ -1,0 +1,13 @@
+{% if options %}
+<fieldset class="filter-group">
+    <legend>{{ title }}</legend>
+    <div class="filter-options">
+        {% for option in options %}
+            <label>
+                <input type="checkbox" name="{{ name }}" value="{{ option.value }}"{% if option.value in selected %} checked{% endif %}>
+                <span>{{ option.label }}</span>
+            </label>
+        {% endfor %}
+    </div>
+</fieldset>
+{% endif %}

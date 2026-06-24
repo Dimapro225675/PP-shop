@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Результат оплаты | Vodopad{% endblock %}
+
+{% block content %}
+<main class="page-shell payment-result-page">
+    {% if error_message %}
+        <div class="payment-result payment-result--error">
+            <h1>Не удалось проверить оплату</h1>
+            <p>{{ error_message }}</p>
+        </div>
+    {% elif order.status == 'paid' %}
+        <div class="payment-result payment-result--success">
+            <h1>Заказ оплачен</h1>
+            <p>Платёж успешно подтверждён.</p>
+        </div>
+    {% elif order.status == 'cancelled' %}
+        <div class="payment-result payment-result--error">
+            <h1>Оплата отменена</h1>
+            <p>ЮKassa сообщила, что платёж отменён.</p>
+        </div>
+    {% else %}
+        <div class="payment-result payment-result--pending">
+            <h1>Платёж обрабатывается</h1>
+            <p>Статус платежа пока не изменился. Проверьте его ещё раз.</p>
+            <a class="button button--primary" href="{% url 'cart:payment_return' order.pk %}">Проверить статус</a>
+        </div>
+    {% endif %}
+
+    <div class="payment-result-actions">
+        <a class="button button--secondary" href="{% url 'users:profile' %}">В личный кабинет</a>
+        <a class="button button--secondary" href="{% url 'catalog:product_list' %}">В каталог</a>
+    </div>
+</main>
+{% endblock %}

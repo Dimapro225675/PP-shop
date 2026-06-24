@@ -1,0 +1,37 @@
+<article class="order-card{% if order.status == 'cancelled' %} order-card--cancelled{% endif %}">
+    <div class="order-card__heading">
+        <div>
+            <small>{{ order.created_at|date:"d.m.Y H:i" }}</small>
+        </div>
+        <span>{{ order.get_status_display }}</span>
+    </div>
+    <ul>
+        {% for item in order.items.all %}
+            <li>
+                <a href="{% url 'catalog:product_detail' item.product.pk %}">{{ item.product_name }} ×{{ item.quantity }}</a>
+                <strong>{{ item.total_price|floatformat:2 }} ₽</strong>
+            </li>
+        {% endfor %}
+    </ul>
+    <div class="order-card__footer">
+        <span>Доставка: <strong>{{ order.delivery_date|date:"d.m.Y" }}</strong></span>
+        <span>Итого: <strong>{{ order.total_amount|floatformat:2 }} ₽</strong></span>
+        {% if history %}
+            <form method="post" action="{% url 'users:hide_order_history' order.pk %}">
+                {% csrf_token %}
+                <button class="remove-button" type="submit">Удалить из истории</button>
+            </form>
+        {% else %}
+            <div class="order-card__actions">
+                {% if order.status == 'awaiting_payment' and order.payment_confirmation_url %}
+                    <a class="button button--primary" href="{{ order.payment_confirmation_url }}">Перейти к оплате</a>
+                    <a class="button button--secondary" href="{% url 'cart:payment_return' order.pk %}">Проверить оплату</a>
+                {% endif %}
+                <form method="post" action="{% url 'users:cancel_order' order.pk %}">
+                    {% csrf_token %}
+                    <button class="button button--cancel-order" type="submit">Отменить заказ</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</article>

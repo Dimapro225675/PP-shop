@@ -1,0 +1,22 @@
+{% extends 'users/auth_base.html' %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<section class="auth-panel">
+    <a class="auth-close" href="{% url 'home' %}" aria-label="Закрыть">×</a>
+    <h1>Вход</h1>
+    <form method="post" class="auth-form">
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {{ field.errors }}
+        {% endfor %}
+        <button class="button button--primary" type="submit">Войти</button>
+    </form>
+    <p class="auth-switch">Нет аккаунта? <a href="{% url 'users:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Зарегистрироваться</a></p>
+</section>
+{% endblock %}

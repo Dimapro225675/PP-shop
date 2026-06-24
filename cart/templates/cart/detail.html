@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Корзина | Vodopad{% endblock %}
+
+{% block content %}
+<main class="page-shell cart-page">
+    <h1>Корзина</h1>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% if cart_items %}
+        <div class="cart-selection-summary">
+            <strong>Выберите товары для оформления</strong>
+            <span>Выбрано: <b id="selected-product-count">{{ selected_count }}</b></span>
+        </div>
+
+        <div class="cart-list">
+            {% for item in cart_items %}
+                <article class="cart-item{% if item.selected %} cart-item--selected{% endif %}" data-cart-item="{{ item.product.pk }}">
+                    <form class="cart-select-form" method="post" action="{% url 'cart:select' item.product.pk %}">
+                        {% csrf_token %}
+                        <label title="Выбрать товар">
+                            <input type="checkbox" name="selected" value="1"{% if item.selected %} checked{% endif %}>
+                            <span class="visually-hidden">Выбрать {{ item.product.name }}</span>
+                        </label>
+                    </form>
+
+                    <a class="cart-item__product" href="{% url 'catalog:product_detail' item.product.pk %}">
+                        <span class="cart-item__image">
+                            {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}">
+                            {% else %}
+                                <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ item.product.name }}">
+                            {% endif %}
+                        </span>
+                        <span class="cart-item__info">
+                            <strong>{{ item.product.name }}</strong>
+                            <small>{{ item.product.manufacturer }}</small>
+                            <small>Код: {{ item.product.code }}</small>
+                        </span>
+                    </a>
+
+                    <form class="quantity-form" method="post" action="{% url 'cart:update' item.product.pk %}">
+                        {% csrf_token %}
+                        <label for="quantity-{{ item.product.pk }}">Количество</label>
+                        <div class="quantity-stepper">
+                            <button type="button" data-quantity-delta="-1" aria-label="Уменьшить количество">−</button>
+                            <input id="quantity-{{ item.product.pk }}" type="number" name="quantity" value="{{ item.quantity }}" min="1">
+                            <button type="button" data-quantity-delta="1" aria-label="Увеличить количество">+</button>
+                        </div>
+                    </form>
+
+                    <strong class="cart-item__total" data-item-total>{{ item.total_price|floatformat:2 }} ₽</strong>
+                    <form method="post" action="{% url 'cart:remove' item.product.pk %}">
+                        {% csrf_token %}
+                        <button class="remove-button" type="submit">Удалить</button>
+                    </form>
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="cart-checkout">
+            <div>
+                <span>Итого по выбранным товарам</span>
+                <strong id="cart-selected-total" aria-live="polite">{{ selected_total|floatformat:2 }} ₽</strong>
+            </div>
+            <form method="post" action="{% url 'cart:checkout' %}">
+                {% csrf_token %}
+                <button id="checkout-button" class="button button--primary" type="submit"{% if not selected_count %} disabled{% endif %}>Оформить</button>
+            </form>
+        </div>
+    {% else %}
+        <div class="cart-empty">
+            <h2>Товары не выбраны</h2>
+            <a class="button button--catalog" href="{% url 'catalog:product_list' %}">В каталог</a>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'cart/cart.js' %}?v=20260624-1" defer></script>
+{% endblock %}
