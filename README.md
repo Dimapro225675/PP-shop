@@ -35,3 +35,5 @@ python manage.py seed_demo_data --clear --products 0 --users 0 --orders 0
 ```powershell
 python manage.py test
 ```
+
+DJANGO_SECRET_KEY=django-insecure-938^js5$&l*p@dn+@h*@047j@@k9n4fj$$8*3&_0d!q9l-o%k_
