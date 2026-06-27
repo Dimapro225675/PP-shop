@@ -33,7 +33,7 @@ class AuthenticationTests(TestCase):
         )
 
         user = User.objects.get(username='NewUser123')
-        self.assertRedirects(response, reverse('catalog:product_list'))
+        self.assertRedirects(response, reverse('home'))
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
         self.assertEqual(user.profile.phone, '8(999)123-45-67')
@@ -64,11 +64,11 @@ class AuthenticationTests(TestCase):
             reverse('users:login'),
             {'username': 'Customer', 'password': 'StrongPass987!'},
         )
-        self.assertRedirects(response, reverse('catalog:product_list'))
+        self.assertRedirects(response, reverse('home'))
         self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
 
         response = self.client.post(reverse('users:logout'))
-        self.assertRedirects(response, reverse('catalog:product_list'))
+        self.assertRedirects(response, reverse('home'))
         self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_regular_user_cannot_open_admin(self):
@@ -233,6 +233,12 @@ class PersonalAccountTests(TestCase):
             user=self.user,
             total_amount=Decimal('36000.00'),
             delivery_date=date(2026, 7, 1),
+            delivery_city='Москва',
+            delivery_street='Тверская',
+            delivery_house='10',
+            delivery_entrance='2',
+            delivery_apartment='45',
+            delivery_comment='Позвонить за час до доставки',
         )
         OrderItem.objects.create(
             order=order,
@@ -251,10 +257,36 @@ class PersonalAccountTests(TestCase):
         self.assertNotContains(response, f'Заказ №{order.pk}')
         self.assertContains(response, f'{self.product.name} ×2')
         self.assertContains(response, '01.07.2026')
+        self.assertContains(response, 'Адрес доставки:')
+        self.assertContains(response, 'Город: Москва; Улица: Тверская; Дом: 10; Подъезд: 2; Кв./офис: 45')
+        self.assertContains(response, 'Комментарий:')
+        self.assertContains(response, 'Позвонить за час до доставки')
         self.assertContains(response, self.product.name)
         self.assertNotContains(response, '<dt>Роль</dt>', html=True)
 
-    def test_registration_can_return_to_profile(self):
+    def test_profile_displays_pickup_address_for_pickup_order(self):
+        order = Order.objects.create(
+            user=self.user,
+            total_amount=Decimal('18000.00'),
+            fulfillment_method=Order.FulfillmentMethod.PICKUP,
+            delivery_cost=Decimal('0.00'),
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_name=self.product.name,
+            unit_price=self.product.price,
+            quantity=1,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('users:profile'))
+
+        self.assertContains(response, 'Адрес доставки:')
+        self.assertContains(response, 'Самовывоз, Город: Белореченск; Улица: Ленина 55')
+        self.assertNotContains(response, 'Доставка:')
+
+    def test_registration_redirects_to_home_even_with_next(self):
         response = self.client.post(
             reverse('users:register'),
             {
@@ -268,7 +300,7 @@ class PersonalAccountTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse('users:profile'))
+        self.assertRedirects(response, reverse('home'))
         self.assertIn('_auth_user_id', self.client.session)
 
     def test_user_can_cancel_active_order(self):

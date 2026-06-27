@@ -13,7 +13,7 @@ from django.utils import timezone
 from faker import Faker
 
 from cart.models import Order, OrderItem
-from catalog.models import Product
+from catalog.models import Product, ProductImage
 from users.models import Favorite, UserProfile
 
 
@@ -83,6 +83,9 @@ class Command(BaseCommand):
 
         products = list(Product.objects.filter(description__startswith=DEMO_MARKER))
         for product in products:
+            for gallery_image in product.gallery_images.all():
+                if gallery_image.image:
+                    gallery_image.image.delete(save=False)
             if product.image:
                 product.image.delete(save=False)
         Product.objects.filter(pk__in=[product.pk for product in products]).delete()
@@ -129,9 +132,30 @@ class Command(BaseCommand):
                 product.image.save(image_name, File(image_file), save=False)
             product.full_clean()
             product.save()
+            self._create_product_gallery(product, product_label, image_path, random)
             products.append(product)
 
         return products
+
+    def _create_product_gallery(self, product, product_label, image_path, random):
+        gallery_count = random.randint(2, 3)
+        gallery_images = []
+        for position in range(1, gallery_count + 1):
+            gallery_image = ProductImage(
+                product=product,
+                alt_text=f'{product_label} {product.name} - фото {position + 1}',
+                position=position,
+            )
+            with image_path.open('rb') as image_file:
+                gallery_image.image.save(
+                    f'{image_path.stem}-gallery-{position}{image_path.suffix}',
+                    File(image_file),
+                    save=False,
+                )
+            gallery_image.full_clean()
+            gallery_images.append(gallery_image)
+
+        ProductImage.objects.bulk_create(gallery_images)
 
     def _create_users(self, fake, count):
         User = get_user_model()

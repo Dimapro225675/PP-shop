@@ -26,13 +26,21 @@
     </div>
     <div class="product-card__body">
         <h2><a href="{% url 'catalog:product_detail' product.pk %}">{{ product.name }}</a></h2>
+        <p class="product-card__manufacturer">{{ product.manufacturer }}</p>
         <div class="product-card__footer">
             <strong>{{ product.price|floatformat:0 }} ₽</strong>
         </div>
-        <form class="product-card__action" method="post" action="{% url 'cart:add' product.pk %}">
+        <form
+            class="product-card__action cart-toggle"
+            method="post"
+            action="{% if product.pk in cart_product_ids %}{% url 'cart:remove' product.pk %}{% else %}{% url 'cart:add' product.pk %}{% endif %}"
+            data-add-url="{% url 'cart:add' product.pk %}"
+            data-remove-url="{% url 'cart:remove' product.pk %}"
+            data-in-cart="{% if product.pk in cart_product_ids %}true{% else %}false{% endif %}"
+        >
             {% csrf_token %}
             <input type="hidden" name="quantity" value="1">
-            <button class="button button--buy" type="submit">Оформить</button>
+            <button class="button button--buy" type="submit">{% if product.pk in cart_product_ids %}Удалить из корзины{% else %}Добавить в корзину{% endif %}</button>
         </form>
     </div>
 </article>

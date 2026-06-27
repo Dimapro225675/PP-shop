@@ -32,6 +32,26 @@
                             <a class="{% if product_type == item.value %}catalog-sidebar__active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
                         {% endfor %}
                     </nav>
+                    {% if type_catalog %}
+                        <details class="catalog-sidebar__filters filter-details" open>
+                            <summary>
+                                <span>Фильтры</span>
+                                {% if active_filter_count %}<span class="filter-count">{{ active_filter_count }}</span>{% endif %}
+                            </summary>
+                            <form class="filter-form filter-form--dynamic" method="get" data-dynamic-filter-form>
+                                <input type="hidden" name="sort" value="{{ sort }}">
+                                {% include 'catalog/includes/filter_group.html' with title='Производитель' name='manufacturer' options=facets.manufacturer selected=selected_filters.manufacturer %}
+                                {% include 'catalog/includes/filter_group.html' with title='Цвет' name='color' options=facets.color selected=selected_filters.color %}
+                                {% include 'catalog/includes/filter_group.html' with title='Материал' name='material' options=facets.material selected=selected_filters.material %}
+                                {% include 'catalog/includes/choice_filter_group.html' with title='Монтаж' name='installation_type' options=facets.installation_type selected=selected_filters.installation_type %}
+                                <div class="filter-actions">
+                                    {% if active_filter_count %}
+                                        <a class="button button--secondary" href="{{ clear_filters_url }}" data-filter-reset>Сбросить</a>
+                                    {% endif %}
+                                </div>
+                            </form>
+                        </details>
+                    {% endif %}
                 </aside>
 
                 {% if catalog_overview %}
@@ -112,19 +132,16 @@
                         <span>Фильтры</span>
                         {% if active_filter_count %}<span class="filter-count">{{ active_filter_count }}</span>{% endif %}
                     </summary>
-                    <form class="filter-form" method="get">
+                    <form class="filter-form filter-form--dynamic" method="get" data-dynamic-filter-form>
                         <input type="hidden" name="q" value="{{ search_query }}">
                         <input type="hidden" name="sort" value="{{ sort }}">
                         {% include 'catalog/includes/filter_group.html' with title='Производитель' name='manufacturer' options=facets.manufacturer selected=selected_filters.manufacturer %}
-                        {% if facets.size %}{% include 'catalog/includes/size_filter.html' with options=facets.size selected=selected_filters.size %}{% endif %}
                         {% include 'catalog/includes/filter_group.html' with title='Цвет' name='color' options=facets.color selected=selected_filters.color %}
                         {% include 'catalog/includes/filter_group.html' with title='Материал' name='material' options=facets.material selected=selected_filters.material %}
-                        {% include 'catalog/includes/filter_group.html' with title='Форма' name='shape' options=facets.shape selected=selected_filters.shape %}
                         {% include 'catalog/includes/choice_filter_group.html' with title='Монтаж' name='installation_type' options=facets.installation_type selected=selected_filters.installation_type %}
                         <div class="filter-actions">
-                            <button class="button button--primary" type="submit">Применить</button>
                             {% if active_filter_count %}
-                                <a class="button button--secondary" href="{% url 'catalog:product_list' %}?q={{ search_query|urlencode }}">Сбросить</a>
+                                <a class="button button--secondary" href="{{ clear_filters_url }}" data-filter-reset>Сбросить</a>
                             {% endif %}
                         </div>
                     </form>

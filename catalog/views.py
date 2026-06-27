@@ -8,12 +8,13 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from cart.cart import CART_SESSION_KEY
 from users.services import RECOMMENDATION_LIMIT, initialize_user_recommendations
 
 from .models import Product
 
 
-FILTER_FIELDS = ('manufacturer', 'color', 'material', 'shape', 'installation_type')
+FILTER_FIELDS = ('manufacturer', 'color', 'material', 'installation_type')
 CATEGORY_TITLES = dict(Product.Category.choices)
 CATEGORY_ALIASES = {
     Product.Category.FAUCET: ('кран', 'краны', 'смеситель', 'смесители'),
@@ -191,6 +192,14 @@ def _guest_recommendations(request):
     return [products_by_id[product_id] for product_id in selected_ids]
 
 
+def _cart_product_ids(request):
+    return {
+        int(product_id)
+        for product_id in request.session.get(CART_SESSION_KEY, {})
+        if str(product_id).isdigit()
+    }
+
+
 def home(request):
     if request.user.is_authenticated:
         recommendations = initialize_user_recommendations(request.user)
@@ -210,6 +219,7 @@ def home(request):
         {
             'recommended_products': recommended_products,
             'favorite_product_ids': favorite_product_ids,
+            'cart_product_ids': _cart_product_ids(request),
         },
     )
 
@@ -253,11 +263,6 @@ def product_list(request, product_type=None):
         if selected_values:
             products = products.filter(**{f'{field}__in': selected_values})
 
-    size_query, selected_sizes = _size_filter_query(request.GET.getlist('size'))
-    selected_filters['size'] = selected_sizes
-    if selected_sizes:
-        products = products.filter(size_query)
-
     sort = request.GET.get('sort', 'name')
     if sort not in SORT_OPTIONS:
         sort = 'name'
@@ -268,15 +273,13 @@ def product_list(request, product_type=None):
         'manufacturer': facet_source.values_list('manufacturer', flat=True).distinct().order_by('manufacturer'),
         'color': facet_source.values_list('color', flat=True).distinct().order_by('color'),
         'material': facet_source.values_list('material', flat=True).distinct().order_by('material'),
-        'shape': facet_source.values_list('shape', flat=True).distinct().order_by('shape'),
         'installation_type': [
             {'value': value, 'label': installation_labels.get(value, value)}
             for value in facet_source.values_list('installation_type', flat=True).distinct()
         ],
-        'size': _size_facets(facet_source),
     }
 
-    paginator = Paginator(products, 12)
+    paginator = Paginator(products, 15)
     page_obj = paginator.get_page(request.GET.get('page'))
     favorite_product_ids = set()
     if request.user.is_authenticated:
@@ -301,6 +304,12 @@ def product_list(request, product_type=None):
         'sort_options': [(value, label) for value, (_, label) in SORT_OPTIONS.items()],
         'query_string': query_params.urlencode(),
         'favorite_product_ids': favorite_product_ids,
+        'cart_product_ids': _cart_product_ids(request),
+        'clear_filters_url': (
+            reverse('catalog:product_type', args=[product_type])
+            if product_type
+            else f'{reverse("catalog:product_list")}?q={raw_search_query}'
+        ),
         'search_query': raw_search_query,
         'catalog_overview': not raw_search_query and product_type is None,
         'type_catalog': not raw_search_query and product_type is not None,
@@ -314,11 +323,13 @@ def product_detail(request, product_id):
         request.user.is_authenticated
         and request.user.favorites.filter(product=product).exists()
     )
+    cart_product_ids = _cart_product_ids(request)
     return render(
         request,
         'catalog/product_detail.html',
         {
             'product': product,
             'is_favorite': is_favorite,
+            'is_in_cart': product.pk in cart_product_ids,
         },
     )

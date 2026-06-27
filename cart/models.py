@@ -12,6 +12,14 @@ def default_delivery_date():
     return timezone.localdate() + timedelta(days=7)
 
 
+def default_delivery_cost():
+    return 500
+
+
+PICKUP_CITY = 'Белореченск'
+PICKUP_STREET = 'Ленина 55'
+
+
 class Order(models.Model):
     class Status(models.TextChoices):
         NEW = 'new', 'Новый'
@@ -21,6 +29,10 @@ class Order(models.Model):
         SHIPPED = 'shipped', 'Доставляется'
         DELIVERED = 'delivered', 'Доставлен'
         CANCELLED = 'cancelled', 'Отменён'
+
+    class FulfillmentMethod(models.TextChoices):
+        DELIVERY = 'delivery', 'Доставка'
+        PICKUP = 'pickup', 'Самовывоз'
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -43,6 +55,24 @@ class Order(models.Model):
         decimal_places=2,
         default=0,
     )
+    delivery_cost = models.DecimalField(
+        'Стоимость доставки',
+        max_digits=10,
+        decimal_places=2,
+        default=default_delivery_cost,
+    )
+    fulfillment_method = models.CharField(
+        'Способ получения',
+        max_length=20,
+        choices=FulfillmentMethod.choices,
+        default=FulfillmentMethod.DELIVERY,
+    )
+    delivery_city = models.CharField('Город доставки', max_length=120, blank=True)
+    delivery_street = models.CharField('Улица', max_length=180, blank=True)
+    delivery_house = models.CharField('Дом', max_length=40, blank=True)
+    delivery_apartment = models.CharField('Кв./офис', max_length=40, blank=True)
+    delivery_entrance = models.CharField('Подъезд', max_length=40, blank=True)
+    delivery_comment = models.TextField('Комментарий к заказу', blank=True)
     delivery_date = models.DateField(
         'Дата доставки',
         default=default_delivery_date,
@@ -81,6 +111,28 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Заказ №{self.pk}'
+
+    @property
+    def is_pickup(self):
+        return self.fulfillment_method == self.FulfillmentMethod.PICKUP
+
+    @property
+    def delivery_address_display(self):
+        if self.is_pickup:
+            return f'Самовывоз, Город: {PICKUP_CITY}; Улица: {PICKUP_STREET}'
+
+        parts = []
+        if self.delivery_city:
+            parts.append(f'Город: {self.delivery_city}')
+        if self.delivery_street:
+            parts.append(f'Улица: {self.delivery_street}')
+        if self.delivery_house:
+            parts.append(f'Дом: {self.delivery_house}')
+        if self.delivery_entrance:
+            parts.append(f'Подъезд: {self.delivery_entrance}')
+        if self.delivery_apartment:
+            parts.append(f'Кв./офис: {self.delivery_apartment}')
+        return '; '.join(parts)
 
 
 class OrderItem(models.Model):

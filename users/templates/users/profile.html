@@ -69,10 +69,10 @@
                                     <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ favorite.product.name }}" loading="lazy">
                                 {% endif %}
                             </a>
-                            <form method="post" action="{% url 'users:toggle_favorite' favorite.product.pk %}">
+                            <form class="favorite-toggle" method="post" action="{% url 'users:toggle_favorite' favorite.product.pk %}" data-remove-card="true">
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{% url 'users:profile' %}">
-                                <button type="submit" title="Удалить из избранного" aria-label="Удалить из избранного">♥</button>
+                                <button class="favorite-toggle__button favorite-toggle__button--active" type="submit" title="Удалить из избранного" aria-label="Удалить из избранного" aria-pressed="true">♥</button>
                             </form>
                         </div>
                         <div class="favorite-card__body">

@@ -17,6 +17,7 @@
         <div class="cart-selection-summary">
             <strong>Выберите товары для оформления</strong>
             <span>Выбрано: <b id="selected-product-count">{{ selected_count }}</b></span>
+            <small>Максимум для оформления: {{ max_checkout_quantity }} товаров</small>
         </div>
 
         <div class="cart-list">
@@ -56,7 +57,7 @@
                     </form>
 
                     <strong class="cart-item__total" data-item-total>{{ item.total_price|floatformat:2 }} ₽</strong>
-                    <form method="post" action="{% url 'cart:remove' item.product.pk %}">
+                    <form class="cart-remove-form" method="post" action="{% url 'cart:remove' item.product.pk %}">
                         {% csrf_token %}
                         <button class="remove-button" type="submit">Удалить</button>
                     </form>
@@ -69,8 +70,7 @@
                 <span>Итого по выбранным товарам</span>
                 <strong id="cart-selected-total" aria-live="polite">{{ selected_total|floatformat:2 }} ₽</strong>
             </div>
-            <form method="post" action="{% url 'cart:checkout' %}">
-                {% csrf_token %}
+            <form method="get" action="{% url 'cart:checkout' %}">
                 <button id="checkout-button" class="button button--primary" type="submit"{% if not selected_count %} disabled{% endif %}>Оформить</button>
             </form>
         </div>
@@ -84,5 +84,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{% static 'cart/cart.js' %}?v=20260624-1" defer></script>
+    <script src="{% static 'cart/cart.js' %}?v=cart-toast-20260627-1" defer></script>
 {% endblock %}

@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load l10n %}
+
+{% block title %}Оформление заказа | Vodopad{% endblock %}
+
+{% block content %}
+<main class="page-shell checkout-page">
+    <h1>Оформление заказа</h1>
+
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}<p class="message message--{{ message.tags }}">{{ message }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="checkout-layout">
+        <form id="checkout-form-external" class="checkout-form" method="post" action="{% url 'cart:checkout' %}">
+            {% csrf_token %}
+            <section class="checkout-section">
+                <h2>Способ получения</h2>
+
+                <div class="checkout-methods" data-delivery-price="500" data-pickup-price="0" data-subtotal="{{ subtotal|unlocalize }}">
+                    {% for radio in form.fulfillment_method %}
+                        <label class="checkout-method">
+                            {{ radio.tag }}
+                            <span>{{ radio.choice_label }}</span>
+                            {% if radio.choice_label == 'Доставка' %}
+                                <small>500 ₽</small>
+                            {% else %}
+                                <small>бесплатно</small>
+                            {% endif %}
+                        </label>
+                    {% endfor %}
+                    {{ form.fulfillment_method.errors }}
+                </div>
+
+                <div class="checkout-delivery-fields" data-delivery-fields>
+                    <div class="checkout-field checkout-field--full">
+                        {{ form.city }}
+                        {{ form.city.errors }}
+                    </div>
+
+                    <div class="checkout-field checkout-field--full">
+                        {{ form.street }}
+                        {{ form.street.errors }}
+                    </div>
+
+                    <div class="checkout-address-grid">
+                        <div class="checkout-field">
+                            {{ form.house }}
+                            {{ form.house.errors }}
+                        </div>
+                        <div class="checkout-field">
+                            {{ form.entrance }}
+                            {{ form.entrance.errors }}
+                        </div>
+                        <div class="checkout-field">
+                            {{ form.apartment }}
+                            {{ form.apartment.errors }}
+                        </div>
+                    </div>
+                </div>
+
+                <p class="checkout-pickup-address" data-pickup-address hidden>
+                    Самовывоз: Город: Белореченск; Улица: Ленина 55
+                </p>
+
+                <div class="checkout-field checkout-field--full">
+                    {{ form.comment }}
+                    {{ form.comment.errors }}
+                </div>
+            </section>
+
+            <button class="button button--primary checkout-submit-mobile" type="submit">Оформить заказ</button>
+        </form>
+
+        <aside class="checkout-summary">
+            <h2>Ваш заказ</h2>
+            <div class="checkout-items">
+                {% for item in items %}
+                    <div class="checkout-item">
+                        <span>{{ item.product.name }} ×{{ item.quantity }}</span>
+                        <strong>{{ item.total_price|floatformat:0 }} ₽</strong>
+                    </div>
+                {% endfor %}
+            </div>
+            <dl class="checkout-totals">
+                <div>
+                    <dt>Стоимость товаров:</dt>
+                    <dd>{{ subtotal|floatformat:0 }} ₽</dd>
+                </div>
+                <div>
+                    <dt>Доставка:</dt>
+                    <dd data-delivery-total>{{ delivery_cost|floatformat:0 }} ₽</dd>
+                </div>
+                <div class="checkout-totals__grand">
+                    <dt>Итого:</dt>
+                    <dd data-grand-total>{{ total|floatformat:0 }} ₽</dd>
+                </div>
+            </dl>
+            <button class="button button--primary checkout-submit-desktop" type="submit" form="checkout-form-external">Оформить заказ</button>
+        </aside>
+    </div>
+</main>
+<script>
+    (() => {
+        const methods = document.querySelector('.checkout-methods');
+        if (!methods) return;
+
+        const deliveryFields = document.querySelector('[data-delivery-fields]');
+        const pickupAddress = document.querySelector('[data-pickup-address]');
+        const deliveryTotal = document.querySelector('[data-delivery-total]');
+        const grandTotal = document.querySelector('[data-grand-total]');
+        const subtotal = Number(methods.dataset.subtotal || 0);
+        const deliveryPrice = Number(methods.dataset.deliveryPrice || 0);
+        const pickupPrice = Number(methods.dataset.pickupPrice || 0);
+
+        const formatPrice = (value) => `${value.toLocaleString('ru-RU')} ₽`;
+        const syncCheckoutMethod = () => {
+            const selected = methods.querySelector('input[name="fulfillment_method"]:checked');
+            const isPickup = selected && selected.value === 'pickup';
+            const cost = isPickup ? pickupPrice : deliveryPrice;
+
+            if (deliveryFields) deliveryFields.hidden = isPickup;
+            if (pickupAddress) pickupAddress.hidden = !isPickup;
+            if (deliveryTotal) deliveryTotal.textContent = formatPrice(cost);
+            if (grandTotal) grandTotal.textContent = formatPrice(subtotal + cost);
+        };
+
+        methods.addEventListener('change', syncCheckoutMethod);
+        syncCheckoutMethod();
+    })();
+</script>
+{% endblock %}

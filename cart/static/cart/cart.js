@@ -22,6 +22,33 @@ async function submitCartForm(form) {
 }
 
 document.addEventListener('submit', async (event) => {
+    const form = event.target.closest('.cart-remove-form');
+    if (!form) return;
+
+    event.preventDefault();
+    const item = form.closest('[data-cart-item]');
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+
+    try {
+        const data = await submitCartForm(form);
+        if (item) item.remove();
+        updateCartSummary(data);
+        if (window.showToast) window.showToast(data.message);
+        if (data.cart_empty) {
+            window.setTimeout(() => window.location.reload(), 900);
+        }
+    } catch (error) {
+        if (window.showToast) {
+            window.showToast(error.message, 'error');
+        } else {
+            window.alert(error.message);
+        }
+        if (button) button.disabled = false;
+    }
+});
+
+document.addEventListener('submit', async (event) => {
     const form = event.target.closest('.quantity-form');
     if (!form) return;
 

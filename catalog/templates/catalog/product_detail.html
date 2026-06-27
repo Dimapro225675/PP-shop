@@ -20,13 +20,27 @@
     </nav>
 
     <div class="product-detail__layout">
-        <section class="product-detail__gallery" aria-label="Изображение товара">
+        <section class="product-detail__gallery" aria-label="Изображения товара">
             <span class="product-detail__badge">В наличии</span>
-            {% if product.image %}
-                <img src="{{ product.image.url }}" alt="{{ product.name }}">
-            {% else %}
-                <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ product.name }}">
-            {% endif %}
+            <button class="product-detail__main-image" type="button" data-gallery-open aria-label="Открыть фотографию">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" data-gallery-main>
+                {% else %}
+                    <img src="{% static 'catalog/images/catalog-fallback.png' %}" alt="{{ product.name }}" data-gallery-main>
+                {% endif %}
+            </button>
+            <div class="product-detail__thumbs" aria-label="Галерея фотографий">
+                {% if product.image %}
+                    <button class="product-detail__thumb product-detail__thumb--active" type="button" data-gallery-thumb data-src="{{ product.image.url }}" data-alt="{{ product.name }}">
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    </button>
+                {% endif %}
+                {% for image in product.gallery_images.all %}
+                    <button class="product-detail__thumb" type="button" data-gallery-thumb data-src="{{ image.image.url }}" data-alt="{{ image.alt_text|default:product.name }}">
+                        <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
+                    </button>
+                {% endfor %}
+            </div>
         </section>
 
         <section class="product-detail__information">
@@ -70,10 +84,17 @@
         <aside class="product-detail__purchase">
             <section class="purchase-panel">
                 <strong class="purchase-panel__price">{{ product.price|floatformat:0 }} ₽</strong>
-                <form method="post" action="{% url 'cart:add' product.pk %}">
+                <form
+                    class="cart-toggle"
+                    method="post"
+                    action="{% if is_in_cart %}{% url 'cart:remove' product.pk %}{% else %}{% url 'cart:add' product.pk %}{% endif %}"
+                    data-add-url="{% url 'cart:add' product.pk %}"
+                    data-remove-url="{% url 'cart:remove' product.pk %}"
+                    data-in-cart="{% if is_in_cart %}true{% else %}false{% endif %}"
+                >
                     {% csrf_token %}
                     <input type="hidden" name="quantity" value="1">
-                    <button class="button purchase-panel__button" type="submit">Добавить в корзину</button>
+                    <button class="button purchase-panel__button" type="submit">{% if is_in_cart %}Удалить из корзины{% else %}Добавить в корзину{% endif %}</button>
                 </form>
                 <p class="purchase-panel__stock">В наличии</p>
             </section>
@@ -86,5 +107,19 @@
             </section>
         </aside>
     </div>
+
+    <div class="product-gallery-modal" data-gallery-modal hidden>
+        <button class="product-gallery-modal__close" type="button" data-gallery-close aria-label="Закрыть">×</button>
+        <button class="product-gallery-modal__nav product-gallery-modal__nav--prev" type="button" data-gallery-prev aria-label="Предыдущее фото">←</button>
+        <button class="product-gallery-modal__image" type="button" data-gallery-close aria-label="Закрыть просмотр">
+            <img src="" alt="" data-gallery-modal-image>
+        </button>
+        <button class="product-gallery-modal__nav product-gallery-modal__nav--next" type="button" data-gallery-next aria-label="Следующее фото">→</button>
+    </div>
 </main>
+{% endblock %}
+
+{% block extra_scripts %}
+    {{ block.super }}
+    <script src="{% static 'catalog/product-gallery.js' %}?v=20260627-3" defer></script>
 {% endblock %}

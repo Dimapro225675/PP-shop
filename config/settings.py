@@ -136,5 +136,5 @@ YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID', '')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY', '')
 
 LOGIN_URL = 'users:login'
-LOGIN_REDIRECT_URL = 'catalog:product_list'
-LOGOUT_REDIRECT_URL = 'catalog:product_list'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'home'

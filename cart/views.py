@@ -12,8 +12,14 @@ from django.views.decorators.http import require_GET, require_POST
 from catalog.models import Product
 
 from .cart import Cart
+from .forms import CheckoutForm
 from .models import Order, OrderItem
 from .payments import PaymentGatewayError, create_payment, get_payment
+
+
+MAX_CHECKOUT_QUANTITY = 20
+DELIVERY_COST = Decimal('500.00')
+PICKUP_COST = Decimal('0.00')
 
 
 def _is_ajax(request):
@@ -25,19 +31,30 @@ def _money(value):
 
 
 def _cart_payload(cart, item_total=None):
+    selected_quantities = cart.selected_quantities()
     payload = {
         'selected_total': _money(cart.selected_total()),
-        'selected_count': len(cart.selected_ids),
-        'has_selected': bool(cart.selected_ids),
+        'selected_count': sum(selected_quantities.values()),
+        'has_selected': bool(selected_quantities),
     }
     if item_total is not None:
         payload['item_total'] = _money(item_total)
     return payload
 
 
+def _cart_action_payload(cart, product, in_cart, message):
+    return {
+        **_cart_payload(cart),
+        'product_id': product.pk,
+        'in_cart': in_cart,
+        'message': message,
+    }
+
+
 def cart_detail(request):
     cart = Cart(request)
     cart_items = cart.items()
+    selected_quantities = cart.selected_quantities()
     return render(
         request,
         'cart/detail.html',
@@ -51,7 +68,8 @@ def cart_detail(request):
                 ),
                 start=Decimal('0.00'),
             ),
-            'selected_count': len(cart.selected_ids),
+            'selected_count': sum(selected_quantities.values()),
+            'max_checkout_quantity': MAX_CHECKOUT_QUANTITY,
         },
     )
 
@@ -66,12 +84,18 @@ def _quantity_from_request(request, default=1):
 @require_POST
 def add_to_cart(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
+    cart = Cart(request)
     try:
-        Cart(request).add(product, _quantity_from_request(request))
+        cart.add(product, _quantity_from_request(request))
     except ValueError as error:
+        if _is_ajax(request):
+            return JsonResponse({'error': str(error)}, status=400)
         messages.error(request, str(error))
     else:
-        messages.success(request, f'«{product.name}» добавлен в корзину')
+        message = f'«{product.name}» добавлен в корзину'
+        if _is_ajax(request):
+            return JsonResponse(_cart_action_payload(cart, product, True, message))
+        messages.success(request, message)
     return redirect('cart:detail')
 
 
@@ -108,57 +132,133 @@ def select_cart_item(request, product_id):
 
 @require_POST
 def remove_from_cart(request, product_id):
-    Cart(request).remove(product_id)
+    product = get_object_or_404(Product, pk=product_id)
+    cart = Cart(request)
+    cart.remove(product_id)
+    message = f'«{product.name}» удалён из корзины'
+    if _is_ajax(request):
+        return JsonResponse({
+            **_cart_action_payload(cart, product, False, message),
+            'cart_empty': not bool(cart.quantities),
+        })
     return redirect('cart:detail')
 
 
-@require_POST
-def checkout(request):
-    cart = Cart(request)
+def _selected_checkout_items(cart):
     selected_quantities = cart.selected_quantities()
     if not selected_quantities:
-        messages.error(request, 'Выберите товары для оформления')
+        return None, 'Выберите товары для оформления'
+
+    selected_quantity = sum(selected_quantities.values())
+    if selected_quantity > MAX_CHECKOUT_QUANTITY:
+        return None, f'За один заказ можно оформить не больше {MAX_CHECKOUT_QUANTITY} товаров'
+
+    product_ids = [int(product_id) for product_id in selected_quantities]
+    products = {
+        product.pk: product
+        for product in Product.objects.filter(pk__in=product_ids)
+    }
+
+    items = []
+    subtotal = Decimal('0.00')
+    for raw_product_id, quantity in selected_quantities.items():
+        product = products.get(int(raw_product_id))
+        if product is None:
+            return None, 'Один из выбранных товаров больше недоступен'
+        item_total = product.price * quantity
+        subtotal += item_total
+        items.append({
+            'product': product,
+            'quantity': quantity,
+            'total_price': item_total,
+        })
+
+    return {
+        'items': items,
+        'selected_quantities': selected_quantities,
+        'subtotal': subtotal,
+        'delivery_cost': DELIVERY_COST,
+        'total': subtotal + DELIVERY_COST,
+    }, ''
+
+
+def _delivery_cost_for_method(fulfillment_method):
+    if fulfillment_method == Order.FulfillmentMethod.PICKUP:
+        return PICKUP_COST
+    return DELIVERY_COST
+
+
+def _checkout_context(form, checkout_data):
+    delivery_cost = _delivery_cost_for_method(
+        form.data.get('fulfillment_method') if form.is_bound else form.initial.get('fulfillment_method')
+    )
+    return {
+        'form': form,
+        **checkout_data,
+        'delivery_cost': delivery_cost,
+        'total': checkout_data['subtotal'] + delivery_cost,
+    }
+
+
+def checkout(request):
+    cart = Cart(request)
+    checkout_data, error_message = _selected_checkout_items(cart)
+    if error_message:
+        messages.error(request, error_message)
         return redirect('cart:detail')
+
     if not request.user.is_authenticated:
         login_url = reverse('users:login')
-        cart_url = reverse('cart:detail')
-        return redirect(f'{login_url}?{urlencode({"next": cart_url})}')
+        checkout_url = reverse('cart:checkout')
+        return redirect(f'{login_url}?{urlencode({"next": checkout_url})}')
+
+    form = CheckoutForm(request.POST if request.method == 'POST' else None)
+    if request.method != 'POST':
+        return render(
+            request,
+            'cart/checkout.html',
+            _checkout_context(form, checkout_data),
+        )
+
+    if not form.is_valid():
+        return render(
+            request,
+            'cart/checkout.html',
+            _checkout_context(form, checkout_data),
+        )
 
     if request.session.session_key is None:
         request.session.save()
 
+    fulfillment_method = form.cleaned_data['fulfillment_method']
+    delivery_cost = _delivery_cost_for_method(fulfillment_method)
+    total_amount = checkout_data['subtotal'] + delivery_cost
+    is_pickup = fulfillment_method == Order.FulfillmentMethod.PICKUP
+
     with transaction.atomic():
-        product_ids = [int(product_id) for product_id in selected_quantities]
-        products = {
-            product.pk: product
-            for product in Product.objects.filter(pk__in=product_ids)
-        }
-
-        order_rows = []
-        total_amount = Decimal('0.00')
-        for raw_product_id, quantity in selected_quantities.items():
-            product = products.get(int(raw_product_id))
-            if product is None:
-                messages.error(request, 'Один из выбранных товаров больше недоступен')
-                return redirect('cart:detail')
-            total_amount += product.price * quantity
-            order_rows.append((product, quantity))
-
         order = Order.objects.create(
             user=request.user,
             session_key=request.session.session_key,
             total_amount=total_amount,
+            delivery_cost=delivery_cost,
+            fulfillment_method=fulfillment_method,
+            delivery_city='' if is_pickup else form.cleaned_data['city'],
+            delivery_street='' if is_pickup else form.cleaned_data['street'],
+            delivery_house='' if is_pickup else form.cleaned_data['house'],
+            delivery_apartment='' if is_pickup else form.cleaned_data['apartment'],
+            delivery_entrance='' if is_pickup else form.cleaned_data['entrance'],
+            delivery_comment=form.cleaned_data['comment'],
             status=Order.Status.AWAITING_PAYMENT,
         )
         OrderItem.objects.bulk_create([
             OrderItem(
                 order=order,
-                product=product,
-                product_name=product.name,
-                unit_price=product.price,
-                quantity=quantity,
+                product=item['product'],
+                product_name=item['product'].name,
+                unit_price=item['product'].price,
+                quantity=item['quantity'],
             )
-            for product, quantity in order_rows
+            for item in checkout_data['items']
         ])
 
     return_url = request.build_absolute_uri(
@@ -183,7 +283,7 @@ def checkout(request):
         'payment_status',
         'payment_confirmation_url',
     ))
-    cart.clear_products(selected_quantities)
+    cart.clear_products(checkout_data['selected_quantities'])
     return redirect(payment.confirmation_url)
 
 

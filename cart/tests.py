@@ -18,6 +18,17 @@ from .payments import PaymentData, PaymentGatewayError
 User = get_user_model()
 
 
+CHECKOUT_DATA = {
+    'fulfillment_method': Order.FulfillmentMethod.DELIVERY,
+    'city': 'Москва',
+    'street': 'Тверская',
+    'house': '10',
+    'entrance': '',
+    'apartment': '',
+    'comment': '',
+}
+
+
 def create_product(name, category, price):
     return Product.objects.create(
         category=category,
@@ -73,7 +84,7 @@ class CartTests(TestCase):
         create_payment_mock.return_value = PaymentData(
             payment_id='test-payment-1',
             status='pending',
-            amount=Decimal('43000.00'),
+            amount=Decimal('43500.00'),
             currency='RUB',
             metadata={},
             confirmation_url='https://yookassa.test/checkout/1',
@@ -82,7 +93,7 @@ class CartTests(TestCase):
         self.client.post(reverse('cart:add', args=[self.faucet.pk]), {'quantity': 1})
         self.client.force_login(self.user)
 
-        response = self.client.post(reverse('cart:checkout'))
+        response = self.client.post(reverse('cart:checkout'), CHECKOUT_DATA)
 
         order = Order.objects.get()
         self.assertEqual(order.user, self.user)
@@ -94,7 +105,12 @@ class CartTests(TestCase):
         self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
         self.assertEqual(order.payment_id, 'test-payment-1')
         self.assertEqual(order.items.count(), 2)
-        self.assertEqual(order.total_amount, Decimal('43000.00'))
+        self.assertEqual(order.total_amount, Decimal('43500.00'))
+        self.assertEqual(order.delivery_cost, Decimal('500.00'))
+        self.assertEqual(order.fulfillment_method, Order.FulfillmentMethod.DELIVERY)
+        self.assertEqual(order.delivery_city, 'Москва')
+        self.assertEqual(order.delivery_street, 'Тверская')
+        self.assertEqual(order.delivery_house, '10')
         self.assertNotIn(CART_SESSION_KEY, self.client.session)
 
     def test_cart_quantity_can_be_updated(self):
@@ -126,7 +142,7 @@ class CartTests(TestCase):
         create_payment_mock.return_value = PaymentData(
             payment_id='test-payment-2',
             status='pending',
-            amount=Decimal('36000.00'),
+            amount=Decimal('36500.00'),
             currency='RUB',
             metadata={},
             confirmation_url='https://yookassa.test/checkout/2',
@@ -140,12 +156,12 @@ class CartTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        self.client.post(reverse('cart:checkout'))
+        self.client.post(reverse('cart:checkout'), CHECKOUT_DATA)
 
         order = Order.objects.get()
         self.assertEqual(order.items.count(), 1)
         self.assertEqual(order.items.get().product, self.sink)
-        self.assertEqual(order.total_amount, Decimal('36000.00'))
+        self.assertEqual(order.total_amount, Decimal('36500.00'))
         self.assertEqual(
             self.client.session[CART_SESSION_KEY],
             {str(self.faucet.pk): 1},
@@ -158,7 +174,7 @@ class CartTests(TestCase):
         self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
         self.client.force_login(self.user)
 
-        response = self.client.post(reverse('cart:checkout'), follow=True)
+        response = self.client.post(reverse('cart:checkout'), CHECKOUT_DATA, follow=True)
 
         order = Order.objects.get()
         self.assertEqual(order.status, Order.Status.PAYMENT_FAILED)
@@ -178,6 +194,85 @@ class CartTests(TestCase):
         self.assertContains(response, 'Выберите товары для оформления')
         self.assertFalse(Order.objects.exists())
 
+    def test_checkout_page_displays_delivery_form_and_summary(self):
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('cart:checkout'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Оформление заказа')
+        self.assertContains(response, 'name="city"')
+        self.assertContains(response, 'name="street"')
+        self.assertContains(response, 'name="house"')
+        self.assertContains(response, 'Доставка')
+        self.assertContains(response, '500 ₽')
+        self.assertContains(response, 'Самовывоз')
+
+    @patch('cart.views.create_payment')
+    def test_checkout_requires_delivery_address(self, create_payment_mock):
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('cart:checkout'), {})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Обязательное поле')
+        self.assertFalse(Order.objects.exists())
+        create_payment_mock.assert_not_called()
+
+    @patch('cart.views.create_payment')
+    def test_checkout_pickup_does_not_require_delivery_address(self, create_payment_mock):
+        create_payment_mock.return_value = PaymentData(
+            payment_id='test-pickup-payment',
+            status='pending',
+            amount=Decimal('18000.00'),
+            currency='RUB',
+            metadata={},
+            confirmation_url='https://yookassa.test/checkout/pickup',
+        )
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('cart:checkout'),
+            {
+                'fulfillment_method': Order.FulfillmentMethod.PICKUP,
+                'city': '',
+                'street': '',
+                'house': '',
+                'entrance': '',
+                'apartment': '',
+                'comment': '',
+            },
+        )
+
+        order = Order.objects.get()
+        self.assertRedirects(
+            response,
+            'https://yookassa.test/checkout/pickup',
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(order.fulfillment_method, Order.FulfillmentMethod.PICKUP)
+        self.assertEqual(order.delivery_cost, Decimal('0.00'))
+        self.assertEqual(order.total_amount, Decimal('18000.00'))
+        self.assertEqual(order.delivery_address_display, 'Самовывоз, Город: Белореченск; Улица: Ленина 55')
+
+    @patch('cart.views.create_payment')
+    def test_checkout_rejects_more_than_twenty_selected_items(self, create_payment_mock):
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 21})
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('cart:checkout'), follow=True)
+
+        self.assertContains(response, 'За один заказ можно оформить не больше 20 товаров')
+        self.assertFalse(Order.objects.exists())
+        create_payment_mock.assert_not_called()
+        self.assertEqual(
+            self.client.session[CART_SESSION_KEY][str(self.sink.pk)],
+            21,
+        )
+
     def test_cart_product_links_to_detail_page(self):
         self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
         response = self.client.get(reverse('cart:detail'))
@@ -192,7 +287,7 @@ class CartTests(TestCase):
 
         expected_url = (
             f'{reverse("users:login")}?'
-            f'{urlencode({"next": reverse("cart:detail")})}'
+            f'{urlencode({"next": reverse("cart:checkout")})}'
         )
         self.assertRedirects(response, expected_url, fetch_redirect_response=False)
         self.assertFalse(Order.objects.exists())
@@ -216,7 +311,7 @@ class CartTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse('cart:detail'))
+        self.assertRedirects(response, reverse('home'))
         self.assertEqual(
             self.client.session[CART_SESSION_KEY][str(self.sink.pk)],
             2,

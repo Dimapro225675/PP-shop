@@ -56,9 +56,9 @@
                                 >{% if product.pk in favorite_product_ids %}♥{% else %}♡{% endif %}</button>
                             </form>
                         </div>
-                        <p class="deal-code">Код: {{ product.code }}</p>
-                        <p class="deal-price">{{ product.price|floatformat:0 }} ₽</p>
                         <h3><a href="{% url 'catalog:product_detail' product.pk %}">{{ product.name }}</a></h3>
+                        <p class="deal-manufacturer">{{ product.manufacturer }}</p>
+                        <p class="deal-price">{{ product.price|floatformat:0 }} ₽</p>
                         <a class="deal-button" href="{% url 'catalog:product_detail' product.pk %}">Посмотреть</a>
                     </article>
                 {% endfor %}

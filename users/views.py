@@ -37,19 +37,27 @@ def _safe_next_url(request):
     return reverse('catalog:product_list')
 
 
+def _home_url():
+    return reverse('home')
+
+
 class UserLoginView(LoginView):
     authentication_form = LoginForm
     template_name = 'users/login.html'
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        return _home_url()
+
 
 class UserLogoutView(LogoutView):
     http_method_names = ('post',)
+    next_page = 'home'
 
 
 def register(request):
     if request.user.is_authenticated:
-        return redirect(_safe_next_url(request))
+        return redirect(_home_url())
 
     form = RegisterForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -57,7 +65,7 @@ def register(request):
             user = form.save()
         login(request, user)
         messages.success(request, 'Регистрация завершена')
-        return redirect(_safe_next_url(request))
+        return redirect(_home_url())
 
     return render(
         request,

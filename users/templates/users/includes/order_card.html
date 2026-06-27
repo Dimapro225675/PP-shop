@@ -13,8 +13,26 @@
             </li>
         {% endfor %}
     </ul>
+    {% if order.delivery_address_display or order.delivery_comment %}
+        <div class="order-card__delivery">
+            {% if order.delivery_address_display %}
+                <p>
+                    <span>Адрес доставки:</span>
+                    <strong>{{ order.delivery_address_display }}</strong>
+                </p>
+            {% endif %}
+            {% if order.delivery_comment %}
+                <p>
+                    <span>Комментарий:</span>
+                    <strong>{{ order.delivery_comment }}</strong>
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
     <div class="order-card__footer">
-        <span>Доставка: <strong>{{ order.delivery_date|date:"d.m.Y" }}</strong></span>
+        {% if not order.is_pickup %}
+            <span>Доставка: <strong>{{ order.delivery_date|date:"d.m.Y" }}</strong></span>
+        {% endif %}
         <span>Итого: <strong>{{ order.total_amount|floatformat:2 }} ₽</strong></span>
         {% if history %}
             <form method="post" action="{% url 'users:hide_order_history' order.pk %}">
