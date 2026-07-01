@@ -20,6 +20,25 @@ PICKUP_CITY = 'Белореченск'
 PICKUP_STREET = 'Ленина 55'
 
 
+class SavedCart(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_cart',
+        verbose_name='Пользователь',
+    )
+    quantities = models.JSONField('Товары', default=dict, blank=True)
+    selected_ids = models.JSONField('Выбранные товары', default=list, blank=True)
+    updated_at = models.DateTimeField('Обновлено', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Сохранённая корзина'
+        verbose_name_plural = 'Сохранённые корзины'
+
+    def __str__(self):
+        return f'Корзина {self.user}'
+
+
 class Order(models.Model):
     class Status(models.TextChoices):
         NEW = 'new', 'Новый'

@@ -317,6 +317,48 @@ class CartTests(TestCase):
             2,
         )
 
+    def test_authenticated_cart_restores_after_logout_and_login(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 2})
+
+        self.client.post(reverse('users:logout'))
+        self.assertNotIn(CART_SESSION_KEY, self.client.session)
+
+        self.client.post(
+            reverse('users:login'),
+            {
+                'username': 'Customer',
+                'password': 'StrongPass987!',
+            },
+        )
+
+        self.assertEqual(
+            self.client.session[CART_SESSION_KEY][str(self.sink.pk)],
+            2,
+        )
+
+    def test_saved_cart_merges_with_anonymous_cart_on_login(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse('cart:add', args=[self.sink.pk]), {'quantity': 1})
+        self.client.post(reverse('users:logout'))
+
+        self.client.post(reverse('cart:add', args=[self.faucet.pk]), {'quantity': 3})
+        self.client.post(
+            reverse('users:login'),
+            {
+                'username': 'Customer',
+                'password': 'StrongPass987!',
+            },
+        )
+
+        self.assertEqual(
+            self.client.session[CART_SESSION_KEY],
+            {
+                str(self.sink.pk): 1,
+                str(self.faucet.pk): 3,
+            },
+        )
+
 
 class PaymentReturnTests(TestCase):
     @classmethod

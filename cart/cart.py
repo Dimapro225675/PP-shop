@@ -9,8 +9,11 @@ CART_SELECTED_SESSION_KEY = 'cart_selected'
 
 class Cart:
     def __init__(self, request):
+        self.user = getattr(request, 'user', None)
         self.session = request.session
-        self.quantities = self.session.get(CART_SESSION_KEY, {})
+        self.quantities = self._normalize_quantities(
+            self.session.get(CART_SESSION_KEY, {})
+        )
         if CART_SELECTED_SESSION_KEY in self.session:
             selected_ids = self.session.get(CART_SELECTED_SESSION_KEY, [])
         else:
@@ -21,10 +24,81 @@ class Cart:
             if str(product_id) in self.quantities
         }
 
+    @staticmethod
+    def _normalize_quantities(quantities):
+        normalized = {}
+        for product_id, quantity in quantities.items():
+            try:
+                quantity = int(quantity)
+            except (TypeError, ValueError):
+                continue
+            if quantity > 0:
+                normalized[str(product_id)] = quantity
+        return normalized
+
+    def _user_can_persist(self):
+        return bool(self.user and self.user.is_authenticated)
+
+    def _persist_for_user(self):
+        if not self._user_can_persist():
+            return
+
+        from .models import SavedCart
+
+        if not self.quantities:
+            SavedCart.objects.filter(user=self.user).delete()
+            return
+
+        SavedCart.objects.update_or_create(
+            user=self.user,
+            defaults={
+                'quantities': self.quantities,
+                'selected_ids': sorted(self.selected_ids),
+            },
+        )
+
     def _save(self):
         self.session[CART_SESSION_KEY] = self.quantities
         self.session[CART_SELECTED_SESSION_KEY] = sorted(self.selected_ids)
         self.session.modified = True
+        self._persist_for_user()
+
+    def persist_for_user(self):
+        self._persist_for_user()
+
+    def restore_for_user(self, user=None):
+        if user is not None:
+            self.user = user
+        if not self._user_can_persist():
+            return
+
+        from .models import SavedCart
+
+        saved_cart = SavedCart.objects.filter(user=self.user).first()
+        if not saved_cart:
+            self._save()
+            return
+
+        merged_quantities = self._normalize_quantities(saved_cart.quantities)
+        for product_id, quantity in self.quantities.items():
+            merged_quantities[product_id] = (
+                merged_quantities.get(product_id, 0) + quantity
+            )
+
+        selected_ids = {
+            str(product_id)
+            for product_id in saved_cart.selected_ids
+            if str(product_id) in merged_quantities
+        }
+        selected_ids.update(
+            product_id
+            for product_id in self.selected_ids
+            if product_id in merged_quantities
+        )
+
+        self.quantities = merged_quantities
+        self.selected_ids = selected_ids
+        self._save()
 
     def add(self, product, quantity=1):
         if quantity < 1:
@@ -72,6 +146,7 @@ class Cart:
         self.quantities = {}
         self.selected_ids = set()
         self.session.modified = True
+        self._persist_for_user()
 
     def items(self):
         product_ids = [int(product_id) for product_id in self.quantities]

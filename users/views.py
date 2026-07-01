@@ -13,6 +13,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from catalog.models import Product
+from cart.cart import Cart
 from cart.models import Order
 
 from .forms import LoginForm, RegisterForm
@@ -46,6 +47,11 @@ class UserLoginView(LoginView):
     template_name = 'users/login.html'
     redirect_authenticated_user = True
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        Cart(self.request).restore_for_user(self.request.user)
+        return response
+
     def get_success_url(self):
         return _home_url()
 
@@ -53,6 +59,11 @@ class UserLoginView(LoginView):
 class UserLogoutView(LogoutView):
     http_method_names = ('post',)
     next_page = 'home'
+
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            Cart(request).persist_for_user()
+        return super().post(request, *args, **kwargs)
 
 
 def register(request):
@@ -64,6 +75,7 @@ def register(request):
         with transaction.atomic():
             user = form.save()
         login(request, user)
+        Cart(request).restore_for_user(user)
         messages.success(request, 'Регистрация завершена')
         return redirect(_home_url())
 
