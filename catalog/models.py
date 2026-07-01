@@ -167,23 +167,23 @@ class ProductImage(models.Model):
         Product,
         on_delete=models.CASCADE,
         related_name='gallery_images',
-        verbose_name='РўРѕРІР°СЂ',
+        verbose_name='Товар',
     )
     image = models.ImageField(
-        'Р¤РѕС‚РѕРіСЂР°С„РёСЏ',
+        'Фотография',
         upload_to=product_gallery_image_upload_path,
     )
     alt_text = models.CharField(
-        'РћРїРёСЃР°РЅРёРµ С„РѕС‚Рѕ',
+        'Описание фото',
         max_length=200,
         blank=True,
     )
-    position = models.PositiveSmallIntegerField('РџРѕСЂСЏРґРѕРє', default=0)
+    position = models.PositiveSmallIntegerField('Порядок', default=0)
 
     class Meta:
         ordering = ('position', 'pk')
-        verbose_name = 'Р¤РѕС‚РѕРіСЂР°С„РёСЏ С‚РѕРІР°СЂР°'
-        verbose_name_plural = 'Р¤РѕС‚РѕРіСЂР°С„РёРё С‚РѕРІР°СЂР°'
+        verbose_name = 'Фотография товара'
+        verbose_name_plural = 'Фотографии товара'
 
     def __str__(self):
         return self.alt_text or f'{self.product} #{self.pk}'

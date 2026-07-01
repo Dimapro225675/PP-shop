@@ -21,15 +21,21 @@ class MultipleImageField(forms.FileField):
 
 
 class ProductAdminForm(forms.ModelForm):
-    additional_images = MultipleImageField(
-        label='Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С„РѕС‚РѕРіСЂР°С„РёРё',
+    photos = MultipleImageField(
+        label='Фотографии',
         required=False,
-        help_text='РњРѕР¶РЅРѕ РІС‹Р±СЂР°С‚СЊ СЃСЂР°Р·Сѓ РЅРµСЃРєРѕР»СЊРєРѕ С„Р°Р№Р»РѕРІ.',
+        help_text='Выберите одну или несколько фотографий. Первая станет основной, остальные попадут в галерею.',
     )
 
     class Meta:
         model = Product
-        fields = '__all__'
+        exclude = ('image',)
+
+    def clean_photos(self):
+        photos = self.cleaned_data.get('photos', [])
+        if not self.instance.pk and not photos:
+            raise forms.ValidationError('Добавьте хотя бы одну фотографию товара.')
+        return photos
 
     def clean(self):
         cleaned_data = super().clean()
@@ -47,27 +53,9 @@ class ProductAdminForm(forms.ModelForm):
         return cleaned_data
 
 
-class ProductImageInline(admin.TabularInline):
-    model = ProductImage
-    extra = 0
-    fields = ('image', 'image_preview', 'alt_text', 'position')
-    readonly_fields = ('image_preview',)
-
-    @admin.display(description='РџСЂРѕСЃРјРѕС‚СЂ')
-    def image_preview(self, image):
-        if not image or not image.image:
-            return 'вЂ”'
-        return format_html(
-            '<img src="{}" alt="" style="width:84px;height:84px;object-fit:cover;'
-            'border:1px solid #d8d8d8;border-radius:4px">',
-            image.image.url,
-        )
-
-
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
-    inlines = (ProductImageInline,)
     list_display = (
         'image_thumbnail',
         'name',
@@ -96,8 +84,8 @@ class ProductAdmin(admin.ModelAdmin):
                 'description',
             ),
         }),
-        ('Фотография', {
-            'fields': ('image', 'image_preview', 'additional_images'),
+        ('Фотографии', {
+            'fields': ('image_preview', 'photos'),
         }),
         ('Характеристики', {
             'fields': (
@@ -117,12 +105,16 @@ class ProductAdmin(admin.ModelAdmin):
         js = ('catalog/admin/product_form.js',)
 
     def save_model(self, request, obj, form, change):
+        photos = form.cleaned_data.get('photos', [])
+        if photos:
+            obj.image = photos[0]
+
         super().save_model(request, obj, form, change)
-        images = request.FILES.getlist('additional_images')
-        if not images:
+
+        if len(photos) <= 1:
             return
         start_position = obj.gallery_images.count()
-        for index, image in enumerate(images, start=1):
+        for index, image in enumerate(photos[1:], start=1):
             ProductImage.objects.create(
                 product=obj,
                 image=image,

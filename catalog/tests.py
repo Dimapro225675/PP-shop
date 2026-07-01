@@ -2,6 +2,7 @@ from decimal import Decimal
 from io import StringIO
 from tempfile import TemporaryDirectory
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -70,7 +71,7 @@ class ProductCatalogTests(TestCase):
 
     def test_catalog_paginates_by_fifteen_products(self):
         Product.objects.bulk_create([
-            Product(**product_data(name=f'Р Р°РєРѕРІРёРЅР° Page {number}'))
+            Product(**product_data(name=f'Раковина Page {number}'))
             for number in range(1, 17)
         ])
 
@@ -140,7 +141,7 @@ class ProductCatalogTests(TestCase):
         ProductImage.objects.create(
             product=self.sink,
             image='products/gallery/test-extra.jpg',
-            alt_text='Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ С„РѕС‚Рѕ',
+            alt_text='Дополнительное фото',
             position=1,
         )
 
@@ -337,12 +338,29 @@ class ProductAdminTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="category"')
-        self.assertContains(response, 'name="image"')
-        self.assertContains(response, 'name="additional_images"')
+        self.assertContains(response, 'name="photos"')
         self.assertContains(response, 'multiple')
         self.assertContains(response, 'catalog/admin/product_form.js')
+        self.assertNotContains(response, 'Фотографии товара')
+        self.assertNotContains(response, 'name="image"')
+        self.assertNotContains(response, 'name="additional_images"')
         self.assertNotContains(response, 'name="product_type"')
         self.assertNotContains(response, 'name="stock"')
+
+    def test_product_photo_script_keeps_selected_files(self):
+        script = (
+            settings.BASE_DIR
+            / 'catalog'
+            / 'static'
+            / 'catalog'
+            / 'admin'
+            / 'product_form.js'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn('selectedPhotos.push', script)
+        self.assertIn('DataTransfer', script)
+        self.assertIn('findIndex((item) => item.id === photo.id)', script)
+        self.assertIn('Фотографии не выбраны.', script)
 
 
 class HomeRecommendationTests(TestCase):
